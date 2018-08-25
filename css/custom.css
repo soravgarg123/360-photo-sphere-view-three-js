@@ -1,0 +1,10 @@
+img.img-responsive.img-thumbnail {
+    width: 51%;
+    height: 300px;
+}
+.gallery img {
+    margin-bottom: 6px;
+}
+.heading-tag{
+	margin-left: 12px;
+}

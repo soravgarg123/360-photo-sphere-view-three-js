@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Create 360 Image</title>
+
+	<!-- Bootstrap Library -->
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/custom.css">
+	<link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+	<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet">
+	<script src="js/jquery.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+
+	<!-- 360 Library -->
+	<link rel="stylesheet" href="css/photo-sphere-viewer.min.css">
+	<script src="js/three.min.js"></script>
+	<script src="js/D.min.js"></script>
+	<script src="js/doT.min.js"></script>
+	<script src="js/uevent.min.js"></script>
+	<script src="js/CanvasRenderer.js"></script>
+	<script src="js/Projector.js"></script>
+	<script src="js/photo-sphere-viewer.min.js"></script>
+</head>
+<body>
+<h1 class="heading-tag">Create 360 Image</h1>
+
+<!-- Manage Gallery -->
+<div class="col-sm-6">
+	<form method="post" id="images-form" enctype="multipart/form-data">
+		<input type="file" id="gallery-photo-add" onchange="uploadImages()" name="files[]" multiple="" class="form-control" accept="image/*">
+	</form>
+	<a href="javascript:void(0);" class="btn btn-primary hidden save-btn">Save</a>
+	<a href="javascript:void(0);" class="btn btn-danger hidden reset-btn" onclick="resetPSV()">Reset</a>
+	<br/>
+	<br/>
+</div>
+<div class="col-sm-12">
+	<div class="gallery"></div>
+</div>
+<br/>
+<br/>
+
+<!-- Manage Text -->
+<div class="manage-text-section hidden">
+	<h1 class="heading-tag">Manage Texts</h1>
+	<div class="text-area">
+		<div class="col-sm-12">
+			<div class="col-sm-2">
+				<input type="text" name="texts[]" class="form-control text-name" placeholder="Enter Text">
+			</div>
+			<div class="col-sm-4">
+				<select class="form-control all-containers" name="containers[]">
+                	
+                </select>
+			</div>
+			<div class="col-sm-2">
+				<a href="javascript:void(0);" class="btn btn-primary add-more-text" onclick="addMoreTexts()" title="Click Here To Add More Text">Add More</a>
+			</div>
+		</div><br/><br/>
+		<div class="more-texts-area"></div>
+	</div>
+</div>
+
+<!-- Text Modal -->
+<div class="modal fade modal_hide" id="textModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+<div role="document" class="modal-dialog modal-sm">
+    <div class="modal-content custom_modal">
+        <div class="modal-header">
+            <h4 id="myModalLabel" class="modal-title">Select Text</h4>
+        </div>
+        <div class="modal-body modal_body">
+            <div class="form-group">
+                <select class="form-control all-texts-options">
+                	
+                </select>
+            </div>
+            <button type="button" class="btn btn-success btn-block" onclick="saveText()">Save</button>
+            <button aria-label="Close" data-dismiss="modal" type="button" class="btn btn-danger btn-block">Close</button>
+        </div>
+    </div>
+</div>
+</div>
+
+</body>
+
+
+<script type="text/javascript">
+
+	var imageMap = new Map(),
+	    allFilesPath  = [],
+	    allContainers = [],
+	    fileBaseURL,
+	    currentPSV,
+	    currentContainer,
+	    currentLatitude ,
+	    currentLongitude;
+
+	/* To upload images */
+	function uploadImages()
+	{
+		var form_data = new FormData($('#images-form')[0]);
+        $.ajax({
+	          url:"upload.php",
+	          type:"POST",
+	          data:form_data,
+	          dataType:"JSON",
+	          cache: false,
+	          contentType: false,
+	          processData: false, 
+	          beforeSend: function() {
+	            ajaxindicatorstart();
+	          }, 
+	          success: function(resp)
+	          {
+	          	if(parseInt(resp.files.length) > 0)
+	          	{
+	          		let filesData = resp.files;
+	          		fileBaseURL   = resp.base_url;
+	          		allFilesPath  = filesData;
+	          		for (var i = 0; i < filesData.length; i++) 
+	          		{
+	            		let containerVal = "photosphere_"+i;
+	            		$('div.gallery').append('<div class="photo-sphere-view"><div id="'+containerVal+'"></div><br/><a href="javascript:void(0);" main="'+filesData[i]+'" container="'+containerVal+'" class="btn btn-danger remove-img" onclick="removeImg(this)">Remove Image</a><br/><br/></div>');
+	            		imageMap.set(containerVal,{sNo:i,containerVal:containerVal,filePath:filesData[i],baseURL:resp.base_url,markers:[]})
+	            		allContainers.push(containerVal);
+						createPhotoSphereView(containerVal,fileBaseURL+filesData[i]);		            		
+	          		}
+	          	}
+	            $('#gallery-photo-add').prev().hide();
+		        $('#gallery-photo-add').hide();	
+		        $('.save-btn').removeClass('hidden');
+		        $('.reset-btn').removeClass('hidden');
+		        // manageAllContainers();
+		        $('.manage-text-section').removeClass('hidden');
+	            ajaxindicatorstop();
+	          },
+	          error:function(error)
+	          {
+	            ajaxindicatorstop();
+	          }
+	    });
+	}
+
+	/* Manage All Containers */
+	function manageAllContainers()
+	{
+		let containerHTML = '<option value="">Select Container</option>';
+		if(parseInt(allContainers.length) > 0)
+		{
+			for (var i = 0; i < allContainers.length; i++) 
+			{
+				allContainers += '<option value="'+allContainers[i]+'">'+allContainers[i]+'</option>'; 
+			}
+		}
+		$('select.all-containers').html(containerHTML);
+	}
+
+	/* Add More Texts */
+	function addMoreTexts()
+	{
+		let textHTML = '<div class="col-sm-12"><div class="col-sm-6"><input type="text" name="texts[]" class="form-control text-name" placeholder="Enter Text"></div><div class="col-sm-3"><a href="javascript:void(0);" class="btn btn-danger remove-text" title="Click Here To Remove Text" onclick="removeText(this)">Remove Text</a></div><br/><br/></div>';
+	    $('.more-texts-area').append(textHTML);
+	}
+
+	/* Remove Image */
+	function removeImg(self)
+	{
+		if(confirm('Are you sure ?'))
+    	{
+    		let imgPath = $(self).attr('main');
+    		let containerValue = $(self).attr('container');
+    		$.ajax({
+		          url:"upload.php",
+		          type:"POST",
+		          data:{imgPath:imgPath},
+		          dataType:"JSON",
+		          beforeSend: function() {
+		            ajaxindicatorstart();
+		          }, 
+		          success: function(resp)
+		          {
+		          	if(resp.status == 1)
+		          	{
+		          		$(self).parent().remove();
+		          		$('div#'+containerValue).remove();
+		          		imageMap.delete(containerValue);
+		          		let index = allFilesPath.indexOf(imgPath);
+		          		if (index > -1) 
+		          		{
+						  allFilesPath.splice(index, 1);
+						}
+						let index1 = allContainers.indexOf(containerValue);
+		          		if (index1 > -1) 
+		          		{
+						  allContainers.splice(index1, 1);
+						}
+						let remainingViews = parseInt($('div.photo-sphere-view').length);
+						if(remainingViews <= 0)
+						{
+							window.location.reload();
+						}
+		          	}
+		          	console.log('allFilesPath',allFilesPath);
+		            ajaxindicatorstop();
+		          },
+		          error:function(error)
+		          {
+		            ajaxindicatorstop();
+		          }
+		    });
+    	}
+	}
+
+	/* Remove Text */
+	function removeText(self)
+	{
+		$(self).parent().prev().parent().remove();
+	}
+
+	/* Reset PSV */
+	function resetPSV()
+	{
+		if(confirm('Are you sure ?'))
+    	{
+    		$.ajax({
+		          url:"upload.php",
+		          type:"POST",
+		          data:{resetImages:1},
+		          dataType:"JSON",
+		          beforeSend: function() {
+		            ajaxindicatorstart();
+		          }, 
+		          success: function(resp)
+		          {
+		          	if(resp.status == 1)
+		          	{
+		          		window.location.reload();
+		          	}
+		            ajaxindicatorstop();
+		          },
+		          error:function(error)
+		          {
+		            ajaxindicatorstop();
+		          }
+		    });
+    	}
+	}
+
+	/* Create Photo Sphere View */
+	function createPhotoSphereView(containerName,imgURL)
+	{
+		var PSV = new PhotoSphereViewer({
+					    panorama: imgURL,
+					    container: containerName,
+					    caption: 'Container Name - ' + containerName,
+					    default_fov: 70,
+					    default_lat: 0.3,
+					    mousewheel: false,
+					    size: {
+					      height: 500
+					    }
+				  	});
+
+		/* Create a new marker when the user clicks somewhere */
+		PSV.on('click', function(e) {
+			currentPSV = PSV;
+			currentContainer = PSV.parent.id;
+			currentLatitude  = e.longitude;
+			currentLongitude = e.latitude;
+		    openModal();
+		});
+
+		/* Delete a generated marker when the user clicks on it */
+		PSV.on('select-marker', function(marker) {
+		  if (marker.data && marker.data.generated) {
+		  	removeMarkersFromMapObj(marker);
+		    PSV.removeMarker(marker);
+		  }
+		});
+	}
+
+	/* Open Modal */
+	function openModal()
+	{
+		let allTextsData = getAllTexts();
+		if(parseInt(allTextsData.length) > 0){
+			let optionsHTML  = '<option value="">Select Text</option>';
+			for (var i = 0; i < allTextsData.length; i++) 
+			{
+				optionsHTML  += '<option value="'+allTextsData[i]+'">'+allTextsData[i]+'</option>';
+			}
+			$('select.all-texts-options').html(optionsHTML);
+			$('#textModal').modal('show');
+		}else{
+			alert('First please add texts');
+			return false;
+		}
+	}
+
+	/* Close Modal */
+	function closeModal()
+	{
+		$('#textModal').modal('hide');
+		$('select.all-texts-options').html('');
+	}
+
+	/* Save Text */
+	function saveText()
+	{
+		let selectedVal = $('select.all-texts-options').val();
+		if(selectedVal)
+		{
+			currentPSV.addMarker({
+				    id: '#' + Math.random(),
+				    longitude: currentLatitude,
+				    latitude: currentLongitude,
+				    image: 'img/pin-red.png',
+				    width: 32,
+				    height: 32,
+				    anchor: 'bottom center',
+				    tooltip: selectedVal,
+				    data: {
+				      generated: true
+				    }
+				});
+			addMarkersInMapObj(selectedVal);
+			closeModal();
+		}
+	}
+
+	/* Add markers in map object */
+	function addMarkersInMapObj(textName)
+	{
+		if(currentContainer && imageMap.has(currentContainer))
+		{
+			/* Get container details */
+			let containerDetails = imageMap.get(currentContainer);
+
+			/* Delete Image map object */
+			imageMap.delete(currentContainer);
+
+			let allMarkers = containerDetails.markers;
+			allMarkers.push({textName:textName,latitude:currentLatitude,longitude:currentLongitude});
+
+			/* Add New Image Map Object */
+			let imgObj = {};
+				imgObj.sNo          = containerDetails.sNo;
+				imgObj.containerVal = containerDetails.containerVal;
+				imgObj.filePath     = containerDetails.filePath;
+				imgObj.baseURL      = containerDetails.baseURL;
+				imgObj.markers      = allMarkers;
+			imageMap.set(currentContainer,imgObj);
+		}
+		console.log('imageMap',imageMap);
+	}
+
+	/* Remove markers from map object */
+	function removeMarkersFromMapObj(marker)
+	{
+		let myContainerName = marker.psv.parent.id;
+		let myText          = marker.tooltip.content;
+		let myLatitude      = marker.latitude;
+		let myLongitude     = marker.longitude;
+		if(myContainerName && imageMap.has(myContainerName))
+		{
+			/* Get container details */
+			let containerDetails = imageMap.get(myContainerName);
+
+			/* Delete Image map object */
+			imageMap.delete(myContainerName);
+
+			let allMarkers = containerDetails.markers;
+			let finalMarkers = [];
+			if(parseInt(allMarkers.length) > 0)
+			{
+				for (var i = 0; i < allMarkers.length; i++) 
+				{
+					if(myText != allMarkers[i]['textName'] && myLatitude != allMarkers[i]['latitude'] && myLongitude != allMarkers[i]['longitude'])
+					{
+						finalMarkers.push({textName:allMarkers[i]['textName'],latitude:allMarkers[i]['latitude'],longitude:allMarkers[i]['longitude']});
+					}
+				}
+			}
+
+			/* Add New Image Map Object */
+			let imgObj = {};
+				imgObj.sNo          = containerDetails.sNo;
+				imgObj.containerVal = containerDetails.containerVal;
+				imgObj.filePath     = containerDetails.filePath;
+				imgObj.baseURL      = containerDetails.baseURL;
+				imgObj.markers      = finalMarkers;
+			imageMap.set(myContainerName,imgObj);
+		}
+		console.log('imageMap',imageMap);
+	}
+
+	/* Get All Texts */
+	function getAllTexts()
+	{
+		let allTexts = [];
+		$("input.text-name").each(function(){
+		 var value = $(this).val(); 
+		 if(value)
+		 {
+		 	if(allTexts.indexOf(value) == -1)
+		 	{
+		 		allTexts.push(value);
+		 	}
+		 }
+		});
+		return allTexts;
+	}
+
+	function ajaxindicatorstart()
+	{
+	    if(jQuery('body').find('#resultLoading').attr('id') != 'resultLoading'){
+	    jQuery('body').append('<div id="resultLoading" style="display:none"><div><img src="img/ajax-loader.gif"><div>Loading...</div></div><div class="bg"></div></div>');
+	    }
+	    
+	    jQuery('#resultLoading').css({
+	        'width':'100%',
+	        'height':'100%',
+	        'position':'fixed',
+	        'z-index':'10000000',
+	        'top':'0',
+	        'left':'0',
+	        'right':'0',
+	        'bottom':'0',
+	        'margin':'auto'
+	    }); 
+	    
+	    jQuery('#resultLoading .bg').css({
+	        'background':'#000000',
+	        'opacity':'0.7',
+	        'width':'100%',
+	        'height':'100%',
+	        'position':'absolute',
+	        'top':'0'
+	    });
+	    
+	    jQuery('#resultLoading>div:first').css({
+	        'width': '250px',
+	        'height':'75px',
+	        'text-align': 'center',
+	        'position': 'fixed',
+	        'top':'0',
+	        'left':'0',
+	        'right':'0',
+	        'bottom':'0',
+	        'margin':'auto',
+	        'font-size':'16px',
+	        'z-index':'10',
+	        'color':'#ffffff'
+	        
+	    });
+
+	    jQuery('#resultLoading .bg').height('100%');
+	    jQuery('#resultLoading').fadeIn(300);
+	    jQuery('body').css('cursor', 'wait');
+	}
+
+	function ajaxindicatorstop()
+	{
+	    jQuery('#resultLoading .bg').height('100%');
+	    jQuery('#resultLoading').fadeOut(300);
+	    jQuery('body').css('cursor', 'default');
+	}
+
+
+</script>
+</html>
