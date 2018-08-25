@@ -9,6 +9,16 @@ if(!empty($_FILES) && !empty($_FILES['files']))
 	if($totalFiles > 0)
 	{
 		$allFiles = array();
+
+		/* Manage Image Directory */
+		$folder_path = BASE_PATH.UPLOAD_FOLDER;
+		if (!file_exists($folder_path)) {
+	      mkdir($folder_path, 0777, true);
+	    }else{
+	      @chmod($folder_path, 0777);
+	    }
+
+	    /* Upload Images */
 		for ($i=0; $i < $totalFiles; $i++) 
 		{ 
 			$f_name1 = $_FILES['files']['name'][$i];
@@ -19,7 +29,7 @@ if(!empty($_FILES) && !empty($_FILES['files']))
 			$f_newfile1="";    
 			if($f_name1){      
 			    $f_newfile1 = rand()."-360-view-".time().'.'.$f_extension1;      
-			    $store1 = "uploads/". $f_newfile1;     
+			    $store1 = UPLOAD_FOLDER."/". $f_newfile1;     
 			    if(move_uploaded_file($f_tmp1,$store1))
 			    {        
 			      chmod($store1, 0777); 
@@ -44,8 +54,7 @@ if(isset($_POST['imgPath']) && !empty($_POST['imgPath']))
 /* Remove All Image */
 if(isset($_POST['resetImages']) && !empty($_POST['resetImages']))
 {
-	$folder = 'uploads';
-	$files  = glob($folder . '/*');
+	$files  = glob(UPLOAD_FOLDER . '/*');
 	foreach($files as $file)
 	{
 	    if(is_file($file))

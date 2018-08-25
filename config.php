@@ -7,4 +7,6 @@ define('BASE_URL',$root);
 
 define('BASE_PATH',$_SERVER['DOCUMENT_ROOT'].'/360-photo-sphere-view-three-js/');
 
+define('UPLOAD_FOLDER','uploads');
+
 ?>
