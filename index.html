@@ -130,8 +130,8 @@
 		        $('#gallery-photo-add').hide();	
 		        $('.save-btn').removeClass('hidden');
 		        $('.reset-btn').removeClass('hidden');
-		        // manageAllContainers();
 		        $('.manage-text-section').removeClass('hidden');
+		        manageAllContainers();
 	            ajaxindicatorstop();
 	          },
 	          error:function(error)
@@ -147,9 +147,9 @@
 		let containerHTML = '<option value="">Select Container</option>';
 		if(parseInt(allContainers.length) > 0)
 		{
-			for (var i = 0; i < allContainers.length; i++) 
+			for (var i = 0; i < parseInt(allContainers.length); i++) 
 			{
-				allContainers += '<option value="'+allContainers[i]+'">'+allContainers[i]+'</option>'; 
+				containerHTML += '<option value="'+allContainers[i]+'">'+allContainers[i]+'</option>'; 
 			}
 		}
 		$('select.all-containers').html(containerHTML);
@@ -158,7 +158,15 @@
 	/* Add More Texts */
 	function addMoreTexts()
 	{
-		let textHTML = '<div class="col-sm-12"><div class="col-sm-6"><input type="text" name="texts[]" class="form-control text-name" placeholder="Enter Text"></div><div class="col-sm-3"><a href="javascript:void(0);" class="btn btn-danger remove-text" title="Click Here To Remove Text" onclick="removeText(this)">Remove Text</a></div><br/><br/></div>';
+		let textHTML = '<div class="col-sm-12"><div class="col-sm-2"><input type="text" name="texts[]" class="form-control text-name" placeholder="Enter Text"></div><div class="col-sm-4"><select class="form-control all-containers" name="containers[]"><option value="">Select Container</option>';
+			if(parseInt(allContainers.length) > 0)
+			{
+				for (var i = 0; i < parseInt(allContainers.length); i++) 
+				{
+					textHTML += '<option value="'+allContainers[i]+'">'+allContainers[i]+'</option>'; 
+				}
+			}
+		    textHTML += '</select></div><div class="col-sm-2"><a href="javascript:void(0);" class="btn btn-danger remove-text" title="Click Here To Remove Text" onclick="removeText(this)">Remove Text</a></div><br/><br/></div>';
 	    $('.more-texts-area').append(textHTML);
 	}
 
@@ -194,6 +202,21 @@
 		          		{
 						  allContainers.splice(index1, 1);
 						}
+
+						/* Manage already selected containers */
+						let totalTexts = parseInt($('select.all-containers').length);
+						if(totalTexts > 0)
+						{
+							$("select.all-containers > option ").each(function(){
+								let self = $(this);
+								let optionVal = self.val();
+								if(optionVal == containerValue)
+								{
+									self.remove();
+								}
+							});
+						}	
+						removeAlreadySelectedMarker(containerValue);
 						let remainingViews = parseInt($('div.photo-sphere-view').length);
 						if(remainingViews <= 0)
 						{
@@ -215,6 +238,11 @@
 	function removeText(self)
 	{
 		$(self).parent().prev().parent().remove();
+		let textName = $(self).parent().prev().prev().find("input.text-name").val();
+		if(textName)
+		{
+			removeAlreadySelectedTexts(textName);
+		}
 	}
 
 	/* Reset PSV */
@@ -287,7 +315,7 @@
 			let optionsHTML  = '<option value="">Select Text</option>';
 			for (var i = 0; i < allTextsData.length; i++) 
 			{
-				optionsHTML  += '<option value="'+allTextsData[i]+'">'+allTextsData[i]+'</option>';
+				optionsHTML  += '<option value="'+allTextsData[i]['textName']+'" container="'+allTextsData[i]['containerName']+'">'+allTextsData[i]['textName']+' ['+allTextsData[i]['containerName']+'] </option>';
 			}
 			$('select.all-texts-options').html(optionsHTML);
 			$('#textModal').modal('show');
@@ -307,8 +335,11 @@
 	/* Save Text */
 	function saveText()
 	{
-		let selectedVal = $('select.all-texts-options').val();
-		if(selectedVal)
+		let selectedText      = $('select.all-texts-options option:selected').val();
+		let selectedContainer = $('select.all-texts-options option:selected').attr('container');
+		console.log('selectedText',selectedText);
+		console.log('selectedContainer',selectedContainer);
+		if(selectedText && selectedContainer)
 		{
 			currentPSV.addMarker({
 				    id: '#' + Math.random(),
@@ -318,18 +349,108 @@
 				    width: 32,
 				    height: 32,
 				    anchor: 'bottom center',
-				    tooltip: selectedVal,
+				    tooltip: selectedText,
 				    data: {
 				      generated: true
 				    }
 				});
-			addMarkersInMapObj(selectedVal);
+			addMarkersInMapObj(selectedText,selectedContainer);
 			closeModal();
 		}
 	}
 
+	/* To remove already selected texts */
+	function removeAlreadySelectedTexts(removedTexts)
+	{
+		console.log('imageMap.size',imageMap.size);
+		if(removedTexts && imageMap.size > 0)
+		{
+			var iterator1 = imageMap.keys();
+			for (var i = 0; i < imageMap.size; i++) 
+			{
+				let containerVal = iterator1.next().value;
+				console.log('containerVal1',containerVal);
+				if(imageMap.has(containerVal))
+				{
+					/* Get container details */
+					let containerDetails = imageMap.get(containerVal);
+
+					/* Delete Image map object */
+					imageMap.delete(containerVal);
+
+					let allMarkers = containerDetails.markers;
+					let finalMarkers = [];
+					if(parseInt(allMarkers.length) > 0)
+					{
+						for (var i = 0; i < allMarkers.length; i++) 
+						{
+							if(removedTexts != allMarkers[i]['textName'])
+							{
+								finalMarkers.push({textName:allMarkers[i]['textName'],latitude:allMarkers[i]['latitude'],longitude:allMarkers[i]['longitude'],redirectContainer:allMarkers[i]['redirectContainer']});
+							}
+						}
+					}
+
+					/* Add New Image Map Object */
+					let imgObj = {};
+						imgObj.sNo          = containerDetails.sNo;
+						imgObj.containerVal = containerDetails.containerVal;
+						imgObj.filePath     = containerDetails.filePath;
+						imgObj.baseURL      = containerDetails.baseURL;
+						imgObj.markers      = finalMarkers;
+					imageMap.set(containerVal,imgObj);
+				}
+			}
+		}
+		console.log('imageMap',imageMap);
+	}
+
+	/* To remove already selected conatiner */
+	function removeAlreadySelectedMarker(removedContainer)
+	{
+		if(removedContainer && imageMap.size > 0)
+		{
+			var iterator1 = imageMap.keys();
+			for (var i = 0; i < imageMap.size; i++) 
+			{
+				let containerVal = iterator1.next().value;
+				if(imageMap.has(containerVal))
+				{
+					/* Get container details */
+					let containerDetails = imageMap.get(containerVal);
+
+					/* Delete Image map object */
+					imageMap.delete(containerVal);
+
+					let allMarkers = containerDetails.markers;
+					let finalMarkers = [];
+					if(parseInt(allMarkers.length) > 0)
+					{
+						for (var i = 0; i < allMarkers.length; i++) 
+						{
+							if(removedContainer != allMarkers[i]['redirectContainer'])
+							{
+								finalMarkers.push({textName:allMarkers[i]['textName'],latitude:allMarkers[i]['latitude'],longitude:allMarkers[i]['longitude'],redirectContainer:allMarkers[i]['redirectContainer']});
+							}
+						}
+					}
+
+					/* Add New Image Map Object */
+					let imgObj = {};
+						imgObj.sNo          = containerDetails.sNo;
+						imgObj.containerVal = containerDetails.containerVal;
+						imgObj.filePath     = containerDetails.filePath;
+						imgObj.baseURL      = containerDetails.baseURL;
+						imgObj.markers      = finalMarkers;
+					imageMap.set(containerVal,imgObj);
+				}
+			}
+		}
+		console.log('imageMap',imageMap);
+	}
+
 	/* Add markers in map object */
-	function addMarkersInMapObj(textName)
+	function addMarkersInMapObj(textName,selectedContainer)
 	{
 		if(currentContainer && imageMap.has(currentContainer))
 		{
@@ -340,7 +461,7 @@
 			imageMap.delete(currentContainer);
 
 			let allMarkers = containerDetails.markers;
-			allMarkers.push({textName:textName,latitude:currentLatitude,longitude:currentLongitude});
+			allMarkers.push({textName:textName,latitude:currentLatitude,longitude:currentLongitude,redirectContainer:selectedContainer});
 
 			/* Add New Image Map Object */
 			let imgObj = {};
@@ -377,7 +498,7 @@
 				{
 					if(myText != allMarkers[i]['textName'] && myLatitude != allMarkers[i]['latitude'] && myLongitude != allMarkers[i]['longitude'])
 					{
-						finalMarkers.push({textName:allMarkers[i]['textName'],latitude:allMarkers[i]['latitude'],longitude:allMarkers[i]['longitude']});
+						finalMarkers.push({textName:allMarkers[i]['textName'],latitude:allMarkers[i]['latitude'],longitude:allMarkers[i]['longitude'],redirectContainer:allMarkers[i]['redirectContainer']});
 					}
 				}
 			}
@@ -398,17 +519,30 @@
 	function getAllTexts()
 	{
 		let allTexts = [];
+		let allContainerNames = [];
+		let allTextContainers = [];
 		$("input.text-name").each(function(){
-		 var value = $(this).val(); 
-		 if(value)
-		 {
-		 	if(allTexts.indexOf(value) == -1)
-		 	{
-		 		allTexts.push(value);
-		 	}
-		 }
+		 allTexts.push($(this).val()); 
 		});
-		return allTexts;
+		$("select.all-containers").each(function(){
+		 allContainerNames.push($(this).val()); 
+		});
+		console.log('allTexts',allTexts);
+		console.log('allContainerNames',allContainerNames);
+		if(parseInt(allTexts.length) > 0)
+		{
+			for (var i = 0; i < allTexts.length; i++) 
+			{
+				var textName = (!allTexts[i]) ? '' : allTexts[i]; 
+				var containerName = (!allContainerNames[i]) ? '' : allContainerNames[i]; 
+				if(textName && containerName)
+				{
+					allTextContainers.push({textName:textName,containerName:containerName});
+				}
+			}
+		}
+		console.log('allTextContainers',allTextContainers);
+		return allTextContainers;
 	}
 
 	function ajaxindicatorstart()
