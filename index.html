@@ -89,11 +89,27 @@
 	var imageMap = new Map(),
 	    allFilesPath  = [],
 	    allContainers = [],
+	    allPSVObjects = new Object(),
 	    fileBaseURL,
 	    currentPSV,
 	    currentContainer,
 	    currentLatitude ,
 	    currentLongitude;
+	    console.log('allPSVObjects',allPSVObjects);
+
+		var removeByAttr = function(arr, attr, value){
+		    var i = arr.length;
+		    while(i--){
+		       if( arr[i] 
+		           && arr[i].hasOwnProperty(attr) 
+		           && (arguments.length > 2 && arr[i][attr] === value ) ){ 
+
+		           arr.splice(i,1);
+
+		       }
+		    }
+		    return arr;
+		}
 
 	/* To upload images */
 	function uploadImages()
@@ -123,7 +139,7 @@
 	            		$('div.gallery').append('<div class="photo-sphere-view"><div id="'+containerVal+'"></div><br/><a href="javascript:void(0);" main="'+filesData[i]+'" container="'+containerVal+'" class="btn btn-danger remove-img" onclick="removeImg(this)">Remove Image</a><br/><br/></div>');
 	            		imageMap.set(containerVal,{sNo:i,containerVal:containerVal,filePath:filesData[i],baseURL:resp.base_url,markers:[]})
 	            		allContainers.push(containerVal);
-						createPhotoSphereView(containerVal,fileBaseURL+filesData[i]);		            		
+						createPhotoSphereView(containerVal,fileBaseURL+filesData[i]);	
 	          		}
 	          	}
 	            $('#gallery-photo-add').prev().hide();
@@ -217,6 +233,8 @@
 							});
 						}	
 						removeAlreadySelectedMarker(containerValue);
+						manageRemovedMarkers(containerValue);
+						console.log('imageMap',imageMap);
 						let remainingViews = parseInt($('div.photo-sphere-view').length);
 						if(remainingViews <= 0)
 						{
@@ -242,6 +260,7 @@
 		if(textName)
 		{
 			removeAlreadySelectedTexts(textName);
+			console.log('imageMap',imageMap);
 		}
 	}
 
@@ -288,6 +307,9 @@
 					      height: 500
 					    }
 				  	});
+		var obj = {};
+		obj[containerName] = PSV;
+		Object.assign(allPSVObjects,obj);
 
 		/* Create a new marker when the user clicks somewhere */
 		PSV.on('click', function(e) {
@@ -337,8 +359,6 @@
 	{
 		let selectedText      = $('select.all-texts-options option:selected').val();
 		let selectedContainer = $('select.all-texts-options option:selected').attr('container');
-		console.log('selectedText',selectedText);
-		console.log('selectedContainer',selectedContainer);
 		if(selectedText && selectedContainer)
 		{
 			currentPSV.addMarker({
@@ -362,7 +382,6 @@
 	/* To remove already selected texts */
 	function removeAlreadySelectedTexts(removedTexts)
 	{
-		console.log('imageMap.size',imageMap.size);
 		if(removedTexts && imageMap.size > 0)
 		{
 			var iterator1 = imageMap.keys();
@@ -447,6 +466,20 @@
 			}
 		}
 		console.log('imageMap',imageMap);
+	}
+
+	/* Manage Removed Markers */
+	function manageRemovedMarkers(selectedContainer)
+	{
+		let allContainers = Object.keys(allPSVObjects);
+		if(parseInt(allContainers.length) > 0)
+		{
+			for (var i = 0; i < allContainers.length; i++) 
+			{
+				let psvData = allPSVObjects[allContainers[i]];
+			}
+		}
+		delete allPSVObjects[selectedContainer];
 	}
 
 	/* Add markers in map object */
