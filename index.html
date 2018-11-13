@@ -7,7 +7,7 @@
 	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
 	<link rel="stylesheet" type="text/css" href="css/custom.css">
 	<link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
-	<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet">
+	<!-- <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet"> -->
 	<script src="js/jquery.min.js"></script>
 	<script src="js/bootstrap.min.js"></script>
 
@@ -95,7 +95,6 @@
 	    currentContainer,
 	    currentLatitude ,
 	    currentLongitude;
-	    console.log('allPSVObjects',allPSVObjects);
 
 		var removeByAttr = function(arr, attr, value){
 		    var i = arr.length;
@@ -128,6 +127,11 @@
 	          }, 
 	          success: function(resp)
 	          {
+	          	if(resp.files.length == 0){
+          			alert('Failed to upload images !');
+          			ajaxindicatorstop();
+          			return false;
+          		}
 	          	if(parseInt(resp.files.length) > 0)
 	          	{
 	          		let filesData = resp.files;
@@ -149,6 +153,9 @@
 		        $('.manage-text-section').removeClass('hidden');
 		        manageAllContainers();
 	            ajaxindicatorstop();
+	            if(resp.isExtensionInvalid == 1){
+	            	alert('You can upload only png, jpg, jpeg & gif images !');
+	            }
 	          },
 	          error:function(error)
 	          {

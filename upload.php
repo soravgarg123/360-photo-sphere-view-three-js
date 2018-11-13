@@ -19,25 +19,30 @@ if(!empty($_FILES) && !empty($_FILES['files']))
 	    }
 
 	    /* Upload Images */
+	    $isExtensionInvalid = 0;
 		for ($i=0; $i < $totalFiles; $i++) 
 		{ 
-			$f_name1 = $_FILES['files']['name'][$i];
-			$f_tmp1  = $_FILES['files']['tmp_name'][$i];    
-			$f_size1 = $_FILES['files']['size'][$i];    
-			$f_extension1 = explode('.',$f_name1);     
-			$f_extension1 = strtolower(end($f_extension1));    
-			$f_newfile1="";    
-			if($f_name1){      
-			    $f_newfile1 = rand()."-360-view-".time().'.'.$f_extension1;      
-			    $store1 = UPLOAD_FOLDER."/". $f_newfile1;     
-			    if(move_uploaded_file($f_tmp1,$store1))
+			$fileName  = $_FILES['files']['name'][$i];
+			$fileTemp  = $_FILES['files']['tmp_name'][$i];    
+			$fileSize  = $_FILES['files']['size'][$i];    
+			$fileExtension = explode('.',$fileName);     
+			$fileExtension = strtolower(end($fileExtension));    
+			if(!in_array($fileExtension, array('png','jpeg','jpg','gif'))){
+				$isExtensionInvalid = 1;
+				continue;
+			}
+			$newFileName = "";    
+			if($fileName){      
+			    $newFileName = rand()."-360-view-".time().'.'.$fileExtension;      
+			    $filePath = UPLOAD_FOLDER."/". $newFileName;     
+			    if(move_uploaded_file($fileTemp,$filePath))
 			    {        
-			      chmod($store1, 0777); 
-			      $allFiles[] = $store1;     
+			      chmod($filePath, 0777); 
+			      $allFiles[] = $filePath;     
 			    }
 			}
 		}
-		echo json_encode(array('files' => $allFiles,'base_url' => BASE_URL));exit;
+		echo json_encode(array('files' => $allFiles,'base_url' => BASE_URL,'isExtensionInvalid' => $isExtensionInvalid));exit;
 	}
 }
 
